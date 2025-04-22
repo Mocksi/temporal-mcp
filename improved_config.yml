@@ -1,0 +1,265 @@
+temporal:
+  # Connection configuration
+  hostPort: "localhost:7233"  # Local Temporal server
+  namespace: "default"
+  environment: "local"        # "local" or "remote"
+  defaultTaskQueue: "executions-task-queue"  # Default task queue for workflows
+
+  # Connection options
+  timeout: "5s"
+  retryOptions:
+    initialInterval: "100ms"
+    maximumInterval: "10s"
+    maximumAttempts: 5
+    backoffCoefficient: 2.0
+
+  # For remote Temporal server (Temporal Cloud)
+  # environment: "remote"
+  # hostPort: "your-namespace.tmprl.cloud:7233"
+  # namespace: "your-namespace"
+  # auth:
+  #   clientID: "your-client-id"
+  #   clientSecret: "your-client-secret"
+  #   audience: "your-audience"
+  #   oauth2URL: "https://auth.temporal.io/oauth2/token"
+  # tls:
+  #   certPath: "/path/to/client.pem"
+  #   keyPath: "/path/to/client.key"
+  #   caPath: "/path/to/ca.pem"
+  #   serverName: "*.tmprl.cloud"
+  #   insecureSkipVerify: false
+
+# Cache configuration
+cache:
+  enabled: true
+  databasePath: "./workflow_cache.db"
+  ttl: "24h"                # Cache entries expire after 24 hours
+  maxCacheSize: 104857600   # 100MB max cache size
+  cleanupInterval: "1h"     # Run cleanup every hour
+
+workflows:
+  hawksi-reactor-workflow:
+    purpose: "Executes Hawksi commands triggered by client events. Handles command validation, dispatches the appropriate handlers, and provides comprehensive error handling. Essential for reactive processing of client-initiated requests with configurable retry policies."
+    input:
+      type: "HawksiCommandRequest"
+      fields:
+        - client_id: "The client ID associated with the command."
+        - command: "The command details to execute."
+    output:
+      type: "string"
+      description: "String result of command execution."
+
+  hawksi-capture-workflow:
+    purpose: "Orchestrates the ingestion of Hawksi captures from S3 storage. Downloads documents, extracts files from archives, inserts metadata, and generates embeddings for vector search. Implements resilient error handling and comprehensive retry policies for each processing stage."
+    input:
+      type: "IngestHawksiCapturesRequest"
+      fields:
+        - client_id: "The client ID associated with the captures."
+    output:
+      type: "string"
+      description: "List of ingested document IDs."
+
+  ingest-workflow:
+    purpose: "Manages document ingestion into the vector store with comprehensive validation and error handling. Processes document contents, extracts key information, and generates searchable metadata. Essential for maintaining a well-structured and queryable knowledge base."
+    input:
+      type: "IngestRequest"
+      fields:
+        - doc_id: "The document ID to ingest."
+    output:
+      type: "string"
+      description: "ID of the ingested document."
+
+  update-xhr-workflow:
+    purpose: "Processes XHR requests associated with DOM elements. Extracts URLs from DOM structures, retrieves relevant content, applies requested changes, and returns a comprehensive response. Crucial for handling dynamic web content modifications with proper validation and error management."
+    input:
+      type: "RAGRequest"
+      fields:
+        - session_id: "The session ID associated with the request."
+        - action: "The action to perform on the DOM element."
+    output:
+      type: "RAGResponse"
+      description: "The result of processing the fetched data with changes."
+
+  chat-workflow:
+    purpose: "Facilitates chat completion processing with comprehensive context management. Retrieves chat history, prepares and validates prompt data, interacts with language models, and formats responses. Handles both simple queries and complex conversational flows with proper error handling."
+    input:
+      type: "ChatRequest"
+      fields:
+        - id: "The ID of the chat request."
+        - prompt_id: "The prompt ID for the chat."
+    output:
+      type: "string"
+      description: "The string completion response."
+
+  new-chat-message-workflow:
+    purpose: "Processes incoming chat messages with JSON state management capabilities. Retrieves message history from Redis, applies JSON document edits based on message content, stores updated messages, and returns enhanced responses with explanations. Essential for stateful chat interactions with persistent storage."
+    input:
+      type: "Message"
+      fields:
+        - client_id: "The client ID associated with the message."
+        - timestamp: "The timestamp of the message."
+        - content: "The content of the message."
+        - updated_json: "The updated JSON content."
+    output:
+      type: "Message"
+      description: "The message with explanation and updated JSON."
+
+  proxie-json-workflow:
+    purpose: "Handles JSON payloads from Proxie with sophisticated request tracking. Processes client instructions for JSON modifications, executes transformations using the JSON editor system, and ensures responses include request hash for proper request-response matching. Provides robust error handling with formatted error responses."
+    input:
+      type: "ProxieJSONRequest"
+      fields:
+        - client_id: "The client ID associated with the request."
+        - content: "The content of the request, including instructions for modifying JSON."
+        - updated_json: "The JSON data to be modified."
+        - request_hash: "The request hash for tracking."
+        - params: "Parameters for the JSON operation, including action types like 'modifyJson', 'addInvoices', etc."
+    output:
+      type: "string"
+      description: "JSON string response for Proxie."
+
+  new-sse-message-workflow:
+    purpose: "Manages Server-Sent Events (SSE) message processing with specialized formatting. Retrieves chat data, prepares DOM structures, processes requests through SSE-specific activities, and formats responses for SSE protocol compatibility. Includes comprehensive error handling with protocol-compliant error responses."
+    input:
+      type: "ChatRequest"
+      fields:
+        - id: "The ID of the chat request."
+        - prompt_id: "The prompt ID for the chat."
+    output:
+      type: "string"
+      description: "JSON string response for SSE."
+
+  list-prompts-workflow:
+    purpose: "Retrieves and formats available prompts for a specific client. Accesses prompt repository, filters prompts based on client context, and provides fallback options when repository access fails. Returns comprehensive prompt metadata including IDs, descriptions, and UI properties."
+    input:
+      type: "string"
+      description: "The client ID to retrieve prompts for."
+    output:
+      type: "array"
+      description: "List of prompt dictionaries."
+
+activities:
+  ingest_document:
+    purpose: "Ingests a document into the vector store. Validates document structure, extracts content, generates embeddings, and stores metadata for future retrieval."
+    input:
+      - session_id: "The session ID associated with the ingest request."
+      - doc_id: "The document ID to ingest."
+    output: "Document ID string"
+
+  download_docs_from_s3:
+    purpose: "Downloads documents from S3 bucket. Authenticates with S3, identifies relevant files, streams content efficiently, and handles large files with proper memory management."
+    input:
+      - client_id: "The client ID associated with the documents."
+    output: "List of file paths"
+
+  extract_files:
+    purpose: "Extracts files from archives. Supports multiple archive formats, handles nested archives, preserves directory structures, and implements security validations against path traversal."
+    input:
+      - file_paths: "List of file paths to extract."
+      - directory: "Directory to extract files to."
+    output: "List of extracted file paths"
+
+  insert_hawksi_metadata:
+    purpose: "Inserts metadata into hawksi_metadata table. Processes document attributes, extracts key information, formats metadata according to schema, and ensures data consistency across records."
+    input:
+      - client_id: "The client ID associated with the metadata."
+      - file_path: "The path to the file containing metadata."
+    output: "Boolean success indicator"
+
+  get_url_from_dom:
+    purpose: "Extracts URLs from DOM. Traverses DOM structure, identifies URL patterns in attributes and content, validates URL formats, and classifies URL types for further processing."
+    input:
+      - session_id: "The session ID associated with the DOM."
+      - dom: "The DOM to extract URLs from."
+    output: "List of URL objects"
+
+  generate_embeddings:
+    purpose: "Generates embeddings for hawksi documents. Processes document content, utilizes machine learning models for semantic representation, optimizes embedding dimensions, and stores vectors for similarity search."
+    input:
+      - client_id: "The client ID associated with the documents."
+    output: "Boolean success indicator"
+
+  get_change_for_url:
+    purpose: "Gets changes for a specific URL. Analyzes URL content, applies requested action transformations, validates changes for consistency, and formats response with comprehensive change details."
+    input:
+      - session_id: "The session ID associated with the request."
+      - url: "The URL to get changes for."
+      - document_id: "The document ID associated with the changes."
+      - action: "The action to perform."
+    output: "Dictionary of changes"
+
+  chat_request:
+    purpose: "Processes chat requests for DOM or JSON. Manages conversation context, prepares prompts with relevant information, interacts with language models, and formats responses consistent with conversation history."
+    input:
+      - id: "The ID of the chat request."
+      - prompt_id: "The prompt ID for the chat."
+    output: "String completion"
+
+  edit_json_document:
+    purpose: "Edits JSON based on natural language instructions. Parses instructions, identifies relevant JSON elements, applies transformations according to natural language intent, and provides explanations of changes made."
+    input:
+      - session_id: "The session ID associated with the JSON."
+      - json_doc: "The JSON document to edit."
+      - instruction: "The natural language instruction for editing."
+    output: "Dictionary with updated_json and explanation"
+
+  process_proxie_json:
+    purpose: "Processes JSON payloads from Proxie. Handles specialized JSON formatting for Proxie system, applies edits with request tracking, ensures response compatibility, and maintains request hash correlation for asynchronous processing."
+    input:
+      - json_edit_request: "The JSON edit request object."
+      - client_id: "The client ID associated with the request."
+      - sender: "The sender of the request."
+      - request_hash: "The request hash for tracking."
+    output: "JSON string response for Proxie"
+
+  sse_chat_request:
+    purpose: "Processes chat requests for SSE protocol. Handles Server-Sent Events formatting, manages event streams, provides incremental responses, and ensures protocol-compliant error handling for streaming contexts."
+    input:
+      - id: "The ID of the chat request."
+      - prompt_id: "The prompt ID for the chat."
+    output: "JSON string for SSE"
+
+  prepare_dom:
+    purpose: "Prepares DOM for processing. Transforms DOM structures into optimized formats, filters content based on visibility and relevance, manages token limits for model compatibility, and preserves critical structural information."
+    input:
+      - dom_json: "The DOM JSON to prepare."
+      - visible_only: "Flag indicating whether to include only visible elements."
+      - max_tokens: "The maximum number of tokens to include."
+    output: "List of HTML chunks"
+
+  handle_hawksi_command:
+    purpose: "Handles hawksi commands. Validates command syntax, dispatches to appropriate handlers, executes command-specific logic, and formats structured responses with execution results or detailed error information."
+    input:
+      - client_id: "The client ID associated with the command."
+      - command: "The command to execute."
+    output: "String result"
+
+  get_messages_from_redis:
+    purpose: "Fetches messages from Redis. Retrieves message history for a client, handles Redis connection management, deserializes message formats, and implements fallback strategies for connection failures."
+    input:
+      - client_id: "The client ID associated with the messages."
+    output: "List of Message objects"
+
+  store_message_in_redis:
+    purpose: "Stores message in Redis. Serializes message objects, manages Redis key namespaces, implements TTL policies, and ensures atomic operations for data consistency during concurrent access."
+    input:
+      - message: "The message to store."
+      - key: "The key to store the message under."
+    output: "Boolean success indicator"
+
+  get_timestamp_ms:
+    purpose: "Gets current timestamp in milliseconds. Provides high-precision time measurements, handles timezone considerations, ensures monotonicity for sequence ordering, and formats consistently across system components."
+    input: []
+    output: "Current timestamp in milliseconds"
+
+  get_available_prompts:
+    purpose: "Gets available prompts for a client. Queries prompt repository, filters based on client context and permissions, formats metadata for UI presentation, and provides default fallbacks when custom prompts are unavailable."
+    input:
+      - client_id: "The client ID to get prompts for."
+    output: "List of prompt dictionaries"
+
+  get_chat_data:
+    purpose: "Gets chat data from database. Retrieves comprehensive conversation context, loads associated vector indexes for semantic search, initializes feature flag clients for conditional logic, and handles authentication for secure data access."
+    input:
+      - chat_id: "The chat ID to get data for."
+    output: "Tuple of chat document, vector index, and LaunchDarkly client"

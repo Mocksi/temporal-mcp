@@ -1,0 +1,76 @@
+temporal:
+  # Connection configuration
+  hostPort: "localhost:7233"  # Local Temporal server
+  namespace: "default"
+  environment: "local"        # "local" or "remote"
+  defaultTaskQueue: "default-queue"  # Default task queue for workflows
+
+  # Connection options
+  timeout: "5s"
+  retryOptions:
+    initialInterval: "100ms"
+    maximumInterval: "10s"
+    maximumAttempts: 5
+    backoffCoefficient: 2.0
+
+# Cache configuration
+cache:
+  enabled: true
+  databasePath: "./workflow_cache.db"
+  ttl: "24h"                # Cache entries expire after 24 hours
+  maxCacheSize: 104857600   # 100MB max cache size
+  cleanupInterval: "1h"     # Run cleanup every hour
+
+workflows:
+  GreetingWorkflow:
+    purpose: "Sends a personalized greeting to a user."
+    input:
+      type: "GreetingRequest"
+      fields:
+        - name: "The user's name to greet."
+        - language: "Optional language code for localization."
+    output:
+      type: "string"
+      description: "The personalized greeting message."
+    taskQueue: "greeting-queue"
+
+  ProcessOrderWorkflow:
+    purpose: "Processes a new e-commerce order."
+    input:
+      type: "OrderRequest"
+      fields:
+        - order_id: "The unique ID of the order."
+        - customer_id: "The customer's ID."
+        - items: "Array of items in the order."
+        - shipping_address: "The shipping address."
+    output:
+      type: "OrderConfirmation"
+      description: "Order confirmation with tracking information."
+    taskQueue: "order-queue"
+
+  DataAnalysisWorkflow:
+    purpose: "Analyzes a dataset and generates insights."
+    input:
+      type: "AnalysisRequest"
+      fields:
+        - dataset_id: "ID of the dataset to analyze."
+        - metrics: "List of metrics to compute."
+        - format: "Output format (json, csv, etc)."
+    output:
+      type: "AnalysisResult"
+      description: "Analysis results with computed metrics and visualizations."
+    taskQueue: "analysis-queue"
+
+  NotificationWorkflow:
+    purpose: "Sends notifications through various channels."
+    input:
+      type: "NotificationRequest"
+      fields:
+        - recipient_id: "ID of the notification recipient."
+        - message: "The notification message."
+        - channel: "The notification channel (email, sms, push, etc)."
+        - priority: "Priority level of the notification."
+    output:
+      type: "DeliveryStatus"
+      description: "Status of the notification delivery attempt."
+    taskQueue: "notification-queue"
