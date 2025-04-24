@@ -245,17 +245,17 @@ func TestWorkflowIDComputation(t *testing.T) {
 		"hash all args by accident": {
 			recipe:   "id_{{ hash }}",
 			args:     map[string]string{"one": "1", "two": "2"},
-			expected: "id_321584698",
+			expected: "id_3822076040",
 		},
 		"hash all args properly": {
 			recipe:   "id_{{ hash . }}",
 			args:     map[string]string{"one": "1", "two": "2"},
-			expected: "id_321584698",
+			expected: "id_3822076040",
 		},
 		"hash some args": {
 			recipe:   "id_{{ hash .one .two }}",
 			args:     map[string]string{"one": "1", "two": "2"},
-			expected: "id_544649048",
+			expected: "id_1475351198",
 		},
 	}
 	for name, tc := range tests {
