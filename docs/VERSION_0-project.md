@@ -58,7 +58,7 @@ This document breaks down the VERSION_0 specification into small, measurable, ac
 
 ## 11. Testing & CI
 - [x] Add `make test` target to run all unit tests
-- [ ] Configure a CI workflow (e.g., GitHub Actions) to run tests on push and PR events
+- [x] Configure a CI workflow (e.g., GitHub Actions) to run tests on push and PR events
 
 ## 12. Documentation
 - [x] Update `README.md` with project overview
