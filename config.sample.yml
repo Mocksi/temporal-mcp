@@ -13,17 +13,10 @@ temporal:
     maximumAttempts: 5
     backoffCoefficient: 2.0
 
-# Cache configuration
-cache:
-  enabled: true
-  databasePath: "./workflow_cache.db"
-  ttl: "24h"                # Cache entries expire after 24 hours
-  maxCacheSize: 104857600   # 100MB max cache size
-  cleanupInterval: "1h"     # Run cleanup every hour
-
 workflows:
   GreetingWorkflow:
     purpose: "Sends a personalized greeting to a user."
+    workflowIDRecipe: "greet_{{.name}}_{{.language}}"
     input:
       type: "GreetingRequest"
       fields:
@@ -36,6 +29,7 @@ workflows:
 
   ProcessOrderWorkflow:
     purpose: "Processes a new e-commerce order."
+    workflowIDRecipe: "orderprocess_{{.order_id}}"
     input:
       type: "OrderRequest"
       fields:
@@ -50,6 +44,7 @@ workflows:
 
   DataAnalysisWorkflow:
     purpose: "Analyzes a dataset and generates insights."
+    workflowIDRecipe: "dataanalysis_{{hash .}}"
     input:
       type: "AnalysisRequest"
       fields:
@@ -63,6 +58,7 @@ workflows:
 
   NotificationWorkflow:
     purpose: "Sends notifications through various channels."
+    workflowIDRecipe: "send_notification_{{hash .recipient_id .message .channel}}"
     input:
       type: "NotificationRequest"
       fields:

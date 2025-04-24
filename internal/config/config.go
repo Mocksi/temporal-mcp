@@ -9,7 +9,6 @@ import (
 type Config struct {
 	Temporal  TemporalConfig         `yaml:"temporal"`
 	Workflows map[string]WorkflowDef `yaml:"workflows"`
-	Cache     CacheConfig            `yaml:"cache"`
 }
 
 // TemporalConfig defines connection settings for Temporal service
@@ -21,21 +20,13 @@ type TemporalConfig struct {
 	DefaultTaskQueue string `yaml:"defaultTaskQueue,omitempty"`
 }
 
-// CacheConfig defines SQLite cache settings
-type CacheConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	DatabasePath    string `yaml:"databasePath"`
-	TTL             string `yaml:"ttl"`
-	MaxCacheSize    int64  `yaml:"maxCacheSize"`
-	CleanupInterval string `yaml:"cleanupInterval"`
-}
-
 // WorkflowDef describes a Temporal workflow exposed as a tool
 type WorkflowDef struct {
-	Purpose   string       `yaml:"purpose"`
-	Input     ParameterDef `yaml:"input"`
-	Output    ParameterDef `yaml:"output"`
-	TaskQueue string       `yaml:"taskQueue"`
+	Purpose          string       `yaml:"purpose"`
+	Input            ParameterDef `yaml:"input"`
+	Output           ParameterDef `yaml:"output"`
+	TaskQueue        string       `yaml:"taskQueue"`
+	WorkflowIDRecipe string       `yaml:"workflowIDRecipe"`
 }
 
 // ParameterDef defines input/output schema for a workflow
