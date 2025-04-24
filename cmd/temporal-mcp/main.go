@@ -198,6 +198,42 @@ func registerWorkflowTool(server *mcp.Server, name string, workflow config.Workf
 	})
 }
 
+// hashWorkflowArgs produces a short (suitable for inclusion in workflow id) hash of the given arguments. Args must be
+// printf-able (%+v).
+func hashWorkflowArgs(allParams map[string]string, paramsToHash ...any) string {
+	if len(paramsToHash) == 0 {
+		log.Printf("Warning: No hash arguments provided - will hash all arguments. Please replace {{ hash }} with {{ hash . }} in the workflowIDRecipe")
+		paramsToHash = []any{allParams}
+	}
+
+	hasher := fnv.New32()
+	for _, arg := range paramsToHash {
+		bytes := []byte(fmt.Sprintf("%+v", arg))
+		_, _ = hasher.Write(bytes) // never fails, per docs
+	}
+	return fmt.Sprintf("%d", hasher.Sum32())
+}
+
+func computeWorkflowID(workflow config.WorkflowDef, params map[string]string) (string, error) {
+	tmpl := template.New("id_recipe")
+
+	tmpl.Funcs(template.FuncMap{
+		"hash": func(paramsToHash ...any) string {
+			return hashWorkflowArgs(params, paramsToHash...)
+		},
+	})
+	if _, err := tmpl.Parse(workflow.WorkflowIDRecipe); err != nil {
+		return "", err
+	}
+
+	writer := strings.Builder{}
+	if err := tmpl.Execute(&writer, params); err != nil {
+		return "", err
+	}
+
+	return writer.String(), nil
+}
+
 // registerCacheClearTool registers the tool to clear cache entries
 func registerCacheClearTool(server *mcp.Server, cacheClient *tool.CacheClient) error {
 	type ClearCacheParams struct {

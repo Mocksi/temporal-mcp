@@ -32,10 +32,11 @@ type CacheConfig struct {
 
 // WorkflowDef describes a Temporal workflow exposed as a tool
 type WorkflowDef struct {
-	Purpose   string       `yaml:"purpose"`
-	Input     ParameterDef `yaml:"input"`
-	Output    ParameterDef `yaml:"output"`
-	TaskQueue string       `yaml:"taskQueue"`
+	Purpose          string       `yaml:"purpose"`
+	Input            ParameterDef `yaml:"input"`
+	Output           ParameterDef `yaml:"output"`
+	TaskQueue        string       `yaml:"taskQueue"`
+	WorkflowIDRecipe string       `yaml:"workflowIDRecipe"`
 }
 
 // ParameterDef defines input/output schema for a workflow

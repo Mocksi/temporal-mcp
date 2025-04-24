@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	"github.com/mocksi/temporal-mcp/internal/config"
@@ -215,6 +216,56 @@ func TestWorkflowInputParams(t *testing.T) {
 			if ctx == nil {
 				t.Error("Context should not be nil")
 			}
+		})
+	}
+}
+
+func TestWorkflowIDComputation(t *testing.T) {
+	type Case struct {
+		recipe   string
+		args     map[string]string
+		expected string
+	}
+
+	tests := map[string]Case{
+		"empty": {
+			recipe:   "",
+			expected: "",
+		},
+		"reference args": {
+			recipe:   "id_{{ .one }}_{{ .two }}",
+			args:     map[string]string{"one": "1", "two": "2"},
+			expected: "id_1_2",
+		},
+		"reference missing args": {
+			recipe:   "id_{{ .one }}_{{ .missing }}",
+			args:     map[string]string{"one": "1"},
+			expected: "id_1_<no value>",
+		},
+		"hash all args by accident": {
+			recipe:   "id_{{ hash }}",
+			args:     map[string]string{"one": "1", "two": "2"},
+			expected: "id_321584698",
+		},
+		"hash all args properly": {
+			recipe:   "id_{{ hash . }}",
+			args:     map[string]string{"one": "1", "two": "2"},
+			expected: "id_321584698",
+		},
+		"hash some args": {
+			recipe:   "id_{{ hash .one .two }}",
+			args:     map[string]string{"one": "1", "two": "2"},
+			expected: "id_544649048",
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			def := config.WorkflowDef{
+				WorkflowIDRecipe: tc.recipe,
+			}
+			actual, err := computeWorkflowID(def, tc.args)
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
 		})
 	}
 }
