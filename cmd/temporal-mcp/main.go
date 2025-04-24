@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/google/uuid"
 	mcp "github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"github.com/mocksi/temporal-mcp/internal/config"
@@ -131,6 +132,11 @@ func registerWorkflowTool(server *mcp.Server, name string, workflow config.Workf
 			return mcp.NewToolResponse(mcp.NewTextContent(
 				fmt.Sprintf("Error computing workflow ID from arguments: %v", err),
 			)), nil
+		}
+
+		if workflowID == "" {
+			log.Printf("Workflow %q has an empty or missing workflowIDRecipe - using a random workflow id", name)
+			workflowID = uuid.NewString()
 		}
 
 		// This will execute a new workflow when:
