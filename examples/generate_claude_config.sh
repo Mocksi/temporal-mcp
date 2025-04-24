@@ -17,11 +17,7 @@ if [[ "$(basename $(pwd))" != "examples" ]]; then
   exit 1
 fi
 
-# Check if binaries exist
-if [[ ! -f "$PARENT_DIR/bin/piglatin-mcp" ]]; then
-  echo "Warning: piglatin-mcp binary not found. Make sure to build it first with 'make build'"
-fi
-
+# Check if binary exists
 if [[ ! -f "$PARENT_DIR/bin/temporal-mcp" ]]; then
   echo "Warning: temporal-mcp binary not found. Make sure to build it first with 'make build'"
 fi
@@ -30,11 +26,6 @@ fi
 cat > "$CONFIG_FILE" << EOF
 {
   "mcpServers": {
-    "piglatin-mcp": {
-      "command": "$PARENT_DIR/bin/piglatin-mcp",
-      "args": [],
-      "env": {}
-    },
     "temporal-mcp": {
       "command": "$PARENT_DIR/bin/temporal-mcp",
       "args": ["--config", "$PARENT_DIR/config.yml"],

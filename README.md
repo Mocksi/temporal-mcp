@@ -75,29 +75,25 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Using with Claude
 
-To use the Pig Latin MCP with Claude:
+To use the Temporal MCP with Claude:
 
-1. Build the piglatin-mcp binary:
+1. Build the temporal-mcp binary:
 ```bash
-make piglatin-mcp
+make build
 ```
 
-2. Configure Claude to use the MCP server by setting up `examples/claude_config.json`:
-```json
-{
-  "mcpServers": {
-    "piglatin-mcp": {
-      "command": "/Users/YOUR_USERNAME/Code/mocksi/temporal-mcp/bin/piglatin-mcp",
-      "args": [],
-      "env": {}
-    }
-  }
-}
+2. Use the provided script to generate a Claude configuration file:
+```bash
+cd examples
+./generate_claude_config.sh
 ```
 
-Replace `YOUR_USERNAME` with your actual username in the path.
+3. Copy the generated configuration to Claude's config directory:
+```bash
+cp examples/claude_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
 
-3. Start Claude with this configuration.
+4. Start Claude with this configuration.
 
 ## Configuration Best Practices
 

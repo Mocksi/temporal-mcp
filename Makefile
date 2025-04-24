@@ -1,4 +1,4 @@
-.PHONY: all build build-temporal build-piglatin clean test fmt vet lint run install help
+.PHONY: all build clean test fmt vet lint run install help
 
 # Go parameters
 GOCMD=go
@@ -11,35 +11,25 @@ GOFMT=$(GOCMD) fmt
 GOVET=$(GOCMD) vet
 GOLINT=golangci-lint
 
-# Binary names
-TEMPORAL_BINARY_NAME=temporal-mcp
-PIGLATIN_BINARY_NAME=piglatin-mcp
+# Binary name
+BINARY_NAME=temporal-mcp
 
-# Binary paths
+# Binary path
 BIN_DIR=./bin
-TEMPORAL_BINARY=$(BIN_DIR)/$(TEMPORAL_BINARY_NAME)
-PIGLATIN_BINARY=$(BIN_DIR)/$(PIGLATIN_BINARY_NAME)
+BINARY=$(BIN_DIR)/$(BINARY_NAME)
 
 
 
 all: clean fmt vet test build
 
-build: build-temporal build-piglatin
-	@echo "All binaries built successfully"
-
-build-temporal:
-	@echo "Building temporal-mcp..."
+build:
+	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(TEMPORAL_BINARY) ./cmd/temporal-mcp
-	@echo "Binary built at $(TEMPORAL_BINARY)"
-	@chmod +x $(TEMPORAL_BINARY)
+	$(GOBUILD) -o $(BINARY) ./cmd/temporal-mcp
+	@echo "Binary built at $(BINARY)"
+	@chmod +x $(BINARY)
 
-build-piglatin:
-	@echo "Building piglatin-mcp..."
-	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(PIGLATIN_BINARY) ./cmd/piglatin-mcp
-	@echo "Binary built at $(PIGLATIN_BINARY)"
-	@chmod +x $(PIGLATIN_BINARY)
+
 
 clean:
 	@echo "Cleaning..."
@@ -63,9 +53,9 @@ lint:
 	@echo "Linting code..."
 	$(GOLINT) run
 
-run: build-temporal
-	@echo "Running temporal-mcp..."
-	$(TEMPORAL_BINARY)
+run: build
+	@echo "Running $(BINARY_NAME)..."
+	$(BINARY)
 
 install:
 	@echo "Installing dependencies..."
@@ -74,9 +64,7 @@ install:
 
 help:
 	@echo "Makefile commands:"
-	@echo "  make build           - Build all binaries"
-	@echo "  make build-temporal  - Build only the temporal-mcp binary"
-	@echo "  make build-piglatin  - Build only the piglatin-mcp binary"
+	@echo "  make build           - Build the temporal-mcp binary"
 	@echo "  make clean           - Clean build artifacts"
 	@echo "  make test            - Run tests"
 	@echo "  make fmt             - Format code"

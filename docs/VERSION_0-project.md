@@ -68,6 +68,6 @@ This document breaks down the VERSION_0 specification into small, measurable, ac
 
 ## 13. Integration with Claude
 - [x] Add example configuration for Claude Desktop in `examples/claude_config.json`
-- [x] Support both temporal-mcp and piglatin-mcp in examples
+- [x] Provide comprehensive examples for temporal-mcp usage
 - [x] Fix logging to ensure proper JSON-RPC communication
 - [x] Update build system to use `./bin` directory for binaries
