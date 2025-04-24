@@ -324,6 +324,9 @@ This MCP exposes the following workflow tools:
 %s
 Use these tools to help users interact with Temporal workflows. Each workflow requires a 'params' object containing the necessary parameters listed above.
 
+Set force_rerun to true to force the workflow to run again. When force_rerun is false, temporal will deduplicate workflows
+based on their arguments. Only set force_rerun to true if the user explicitly tells you to.
+
 Example usage: 
 Call GreetingWorkflow with {"params": {"name": "John"}}`, workflowList)
 
