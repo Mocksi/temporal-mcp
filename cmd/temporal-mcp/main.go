@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/mocksi/temporal-mcp/internal/sanitize_history_event"
 	"google.golang.org/protobuf/encoding/protojson"
 	"log"
 	"os"
@@ -241,7 +242,7 @@ func registerGetWorkflowHistoryTool(server *mcp.Server, tempClient client.Client
 				return mcp.NewToolResponse(mcp.NewTextContent(msg)), nil
 			}
 
-			sanitizeEvent(event)
+			sanitize_history_event.SanitizeHistoryEvent(event)
 			bytes, err := protojson.Marshal(event)
 			if err != nil {
 				// should never happen?

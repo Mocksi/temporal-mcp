@@ -1,4 +1,4 @@
-package main
+package sanitize_history_event
 
 import (
 	"go.temporal.io/api/history/v1"
@@ -6,14 +6,12 @@ import (
 	"strings"
 )
 
-// sanitizeEvent removes all Payloads from the given history event's attributes. This helps mitigate the impact of
+// SanitizeHistoryEvent removes all Payloads from the given history event's attributes. This helps mitigate the impact of
 // large workflow histories (temporal permits up to 50mb) on small LLM context windows (~2mb). This is just best
 // effort - it assumes that largeness is caused by the payloads.
-func sanitizeEvent(event *history.HistoryEvent) {
+func SanitizeHistoryEvent(event *history.HistoryEvent) {
 	sanitizeRecursively(event.ProtoReflect())
 }
-
-var REPLACEMENT_VALUE = protoreflect.ValueOf(nil)
 
 // HistoryEvents are highly polymorphic (today: 54 different types), and Temporal could add new types at any time (most
 // recent time: launching Nexus). Let's sanitize via convention, rather than a hard-coded list of history event types
