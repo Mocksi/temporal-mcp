@@ -17,13 +17,6 @@ temporal:
   namespace: "default"
   environment: "local"
 
-cache:
-  enabled: true
-  databasePath: "./test_cache.db"
-  ttl: "1h"
-  maxCacheSize: 10485760
-  cleanupInterval: "10m"
-
 workflows:
   TestWorkflow:
     purpose: "Test workflow"
@@ -57,10 +50,6 @@ workflows:
 
 	if cfg.Temporal.Namespace != "default" {
 		t.Errorf("Expected Namespace to be default, got %s", cfg.Temporal.Namespace)
-	}
-
-	if !cfg.Cache.Enabled {
-		t.Error("Expected Cache.Enabled to be true")
 	}
 
 	workflow, exists := cfg.Workflows["TestWorkflow"]

@@ -13,14 +13,6 @@ temporal:
     maximumAttempts: 5
     backoffCoefficient: 2.0
 
-# Cache configuration
-cache:
-  enabled: true
-  databasePath: "./workflow_cache.db"
-  ttl: "24h"                # Cache entries expire after 24 hours
-  maxCacheSize: 104857600   # 100MB max cache size
-  cleanupInterval: "1h"     # Run cleanup every hour
-
 workflows:
   GreetingWorkflow:
     purpose: "Sends a personalized greeting to a user."

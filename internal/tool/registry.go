@@ -8,17 +8,15 @@ import (
 
 // Registry manages workflow tools metadata and dependencies
 type Registry struct {
-	config      *config.Config
-	tempClient  client.Client
-	cacheClient *CacheClient
+	config     *config.Config
+	tempClient client.Client
 }
 
 // NewRegistry creates a new tool registry with required dependencies
-func NewRegistry(cfg *config.Config, tempClient client.Client, cacheClient *CacheClient) *Registry {
+func NewRegistry(cfg *config.Config, tempClient client.Client) *Registry {
 	return &Registry{
-		config:      cfg,
-		tempClient:  tempClient,
-		cacheClient: cacheClient,
+		config:     cfg,
+		tempClient: tempClient,
 	}
 }
 
@@ -30,14 +28,4 @@ func (r *Registry) GetConfig() *config.Config {
 // GetTemporalClient returns the Temporal client instance
 func (r *Registry) GetTemporalClient() client.Client {
 	return r.tempClient
-}
-
-// GetCacheClient returns the cache client instance
-func (r *Registry) GetCacheClient() *CacheClient {
-	return r.cacheClient
-}
-
-// IsCacheEnabled returns whether caching is enabled
-func (r *Registry) IsCacheEnabled() bool {
-	return r.config.Cache.Enabled && r.cacheClient != nil
 }

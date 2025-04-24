@@ -8,7 +8,6 @@ import (
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"github.com/mocksi/temporal-mcp/internal/config"
 	"github.com/mocksi/temporal-mcp/internal/temporal"
-	"github.com/mocksi/temporal-mcp/internal/tool"
 	temporal_enums "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 	"hash/fnv"
@@ -54,19 +53,6 @@ func main() {
 		log.Printf("Connected to Temporal service at %s", cfg.Temporal.HostPort)
 	}
 
-	// Initialize cache if enabled
-	var cacheClient *tool.CacheClient
-	if cfg.Cache.Enabled {
-		cacheClient, err = tool.NewCacheClient(cfg.Cache)
-		if err != nil {
-			log.Fatalf("Failed to initialize cache: %v", err)
-		}
-		defer cacheClient.Close()
-		log.Printf("Cache initialized with TTL of %s", cfg.Cache.TTL)
-	} else {
-		log.Println("Cache is disabled")
-	}
-
 	// Create a new MCP server with stdio transport for AI model communication
 	server := mcp.NewServer(stdio.NewStdioServerTransport())
 
@@ -75,7 +61,7 @@ func main() {
 
 	// Register all workflow tools
 	log.Println("Registering workflow tools...")
-	err = registerWorkflowTools(server, cfg, temporalClient, cacheClient)
+	err = registerWorkflowTools(server, cfg, temporalClient)
 	if err != nil {
 		log.Fatalf("Failed to register workflow tools: %v", err)
 	}
@@ -101,30 +87,21 @@ func main() {
 }
 
 // registerWorkflowTools registers all workflow definitions as MCP tools
-func registerWorkflowTools(server *mcp.Server, cfg *config.Config, tempClient client.Client, cacheClient *tool.CacheClient) error {
+func registerWorkflowTools(server *mcp.Server, cfg *config.Config, tempClient client.Client) error {
 	// Register all workflows as tools
 	for name, workflow := range cfg.Workflows {
-		err := registerWorkflowTool(server, name, workflow, tempClient, cacheClient, cfg.Cache.Enabled, cfg)
+		err := registerWorkflowTool(server, name, workflow, tempClient, cfg)
 		if err != nil {
 			return fmt.Errorf("failed to register workflow tool %s: %w", name, err)
 		}
 		log.Printf("Registered workflow tool: %s", name)
 	}
 
-	// Register cache clear tool if enabled
-	if cfg.Cache.Enabled && cacheClient != nil {
-		err := registerCacheClearTool(server, cacheClient)
-		if err != nil {
-			return fmt.Errorf("failed to register cache clear tool: %w", err)
-		}
-		log.Printf("Registered ClearCache tool")
-	}
-
 	return nil
 }
 
 // registerWorkflowTool registers a single workflow as an MCP tool
-func registerWorkflowTool(server *mcp.Server, name string, workflow config.WorkflowDef, tempClient client.Client, cacheClient *tool.CacheClient, cacheEnabled bool, cfg *config.Config) error {
+func registerWorkflowTool(server *mcp.Server, name string, workflow config.WorkflowDef, tempClient client.Client, cfg *config.Config) error {
 	// Define the type for workflow parameters based on fields
 	type WorkflowParams struct {
 		Params     map[string]string `json:"params"`
@@ -133,16 +110,6 @@ func registerWorkflowTool(server *mcp.Server, name string, workflow config.Workf
 
 	// Register the tool with MCP server
 	return server.RegisterTool(name, workflow.Purpose, func(args WorkflowParams) (*mcp.ToolResponse, error) {
-		// Check if result is in cache
-		if cacheEnabled && cacheClient != nil {
-			cachedResult, found := cacheClient.Get(name, args.Params)
-			if found {
-				log.Printf("Cache hit for workflow %s", name)
-				return mcp.NewToolResponse(mcp.NewTextContent(cachedResult)), nil
-			}
-			log.Printf("Cache miss for workflow %s", name)
-		}
-
 		// Check if Temporal client is available
 		if tempClient == nil {
 			log.Printf("Error: Temporal client is not available for workflow: %s", name)
@@ -216,15 +183,6 @@ func registerWorkflowTool(server *mcp.Server, name string, workflow config.Workf
 
 		log.Printf("Workflow %s completed successfully", name)
 
-		// Cache the result if enabled
-		if cacheEnabled && cacheClient != nil {
-			if err := cacheClient.Set(name, args.Params, result); err != nil {
-				log.Printf("Warning: Failed to cache result for workflow %s: %v", name, err)
-			} else {
-				log.Printf("Cached result for workflow %s", name)
-			}
-		}
-
 		return mcp.NewToolResponse(mcp.NewTextContent(result)), nil
 	})
 }
@@ -265,33 +223,6 @@ func computeWorkflowID(workflow config.WorkflowDef, params map[string]string) (s
 	return writer.String(), nil
 }
 
-// registerCacheClearTool registers the tool to clear cache entries
-func registerCacheClearTool(server *mcp.Server, cacheClient *tool.CacheClient) error {
-	type ClearCacheParams struct {
-		WorkflowName string `json:"workflowName,omitempty" jsonschema:"description=Optional. Name of the workflow to clear the cache for. If not provided, all cache entries will be cleared."`
-	}
-
-	return server.RegisterTool("ClearCache", "Clears cached workflow results, either by specific workflow or the entire cache.", func(args ClearCacheParams) (*mcp.ToolResponse, error) {
-		if cacheClient == nil {
-			return mcp.NewToolResponse(mcp.NewTextContent("Cache is not initialized")), nil
-		}
-
-		log.Printf("Clearing cache for workflow: %s", args.WorkflowName)
-		rowsCleared, err := cacheClient.Clear(args.WorkflowName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to clear cache: %w", err)
-		}
-
-		responseMsg := fmt.Sprintf("Successfully cleared %d cache entries", rowsCleared)
-		if args.WorkflowName != "" {
-			responseMsg = fmt.Sprintf("Successfully cleared %d cache entries for workflow '%s'", rowsCleared, args.WorkflowName)
-		}
-
-		log.Printf("%s", responseMsg)
-		return mcp.NewToolResponse(mcp.NewTextContent(responseMsg)), nil
-	})
-}
-
 // registerSystemPrompt registers the system prompt for the MCP
 func registerSystemPrompt(server *mcp.Server, cfg *config.Config) error {
 	return server.RegisterPrompt("system_prompt", "System prompt for the Temporal MCP", func(_ struct{}) (*mcp.PromptResponse, error) {
@@ -308,13 +239,6 @@ func registerSystemPrompt(server *mcp.Server, cfg *config.Config) error {
 				}
 			}
 			workflowList += "\n"
-		}
-
-		// Add ClearCache tool if enabled
-		if cfg.Cache.Enabled {
-			workflowList += "- ClearCache: Clears cached workflow results\n"
-			workflowList += "  Parameters:\n"
-			workflowList += "    - workflowName: (Optional) Name of the workflow to clear the cache for\n\n"
 		}
 
 		systemPrompt := fmt.Sprintf(`You are now connected to a Temporal MCP (Model Control Protocol) server that provides access to various Temporal workflows.
