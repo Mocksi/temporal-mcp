@@ -5,17 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/encoding/protojson"
+	"log"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
 	mcp "github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"github.com/mocksi/temporal-mcp/internal/config"
 	"github.com/mocksi/temporal-mcp/internal/temporal"
 	temporal_enums "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
-	"log"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
 	"text/template"
 )
 
@@ -210,6 +212,59 @@ func computeWorkflowID(workflow config.WorkflowDef, params map[string]string) (s
 	}
 
 	return writer.String(), nil
+}
+
+// registerGetWorkflowHistoryTool registres a tool that gets workflow histories
+func registerGetWorkflowHistoryTool(server *mcp.Server, tempClient client.Client) error {
+	type GetWorkflowHistoryParams struct {
+		WorkflowID string `json:"workflowId"`
+		RunID      string `json:"runId"`
+	}
+	desc := "Gets the workflow execution history for a specific run of a workflow. runId is optional - if omitted, this tool gets the history for the latest run of the given workflowId"
+
+	return server.RegisterTool("GetWorkflowHistory", desc, func(args GetWorkflowHistoryParams) (*mcp.ToolResponse, error) {
+		// Check if Temporal client is available
+		if tempClient == nil {
+			log.Printf("Error: Temporal client is not available for getting workflow histories")
+			return mcp.NewToolResponse(mcp.NewTextContent(
+				"Error: Temporal client is not available for getting workflow histories",
+			)), nil
+		}
+
+		eventJsons := make([]string, 0)
+		iterator := tempClient.GetWorkflowHistory(context.Background(), args.WorkflowID, args.RunID, false, temporal_enums.HISTORY_EVENT_FILTER_TYPE_ALL_EVENT)
+		for iterator.HasNext() {
+			event, err := iterator.Next()
+			if err != nil {
+				msg := fmt.Sprintf("Error: Failed to get %dth history event: %v", len(eventJsons), err)
+				log.Print(msg)
+				return mcp.NewToolResponse(mcp.NewTextContent(msg)), nil
+			}
+
+			sanitizeEvent(event)
+			bytes, err := protojson.Marshal(event)
+			if err != nil {
+				// should never happen?
+				return nil, err
+			}
+
+			eventJsons = append(eventJsons, string(bytes))
+		}
+
+		// The last step of json-marshalling is unfortunate (forced on us by the lack of a proto for the list of
+		// events), but not worth actually building and marshalling a slice for. Let's just do it by hand.
+		allEvents := strings.Builder{}
+		allEvents.WriteString("[")
+		for i, eventJson := range eventJsons {
+			if i > 0 {
+				allEvents.WriteString(",")
+			}
+			allEvents.WriteString(eventJson)
+		}
+		allEvents.WriteString("]")
+
+		return mcp.NewToolResponse(mcp.NewTextContent(allEvents.String())), nil
+	})
 }
 
 // registerSystemPrompt registers the system prompt for the MCP
