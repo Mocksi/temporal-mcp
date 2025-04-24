@@ -24,6 +24,7 @@ cache:
 workflows:
   GreetingWorkflow:
     purpose: "Sends a personalized greeting to a user."
+    workflowIDRecipe: "greet_{{.name}}_{{.language}}"
     input:
       type: "GreetingRequest"
       fields:
@@ -36,6 +37,7 @@ workflows:
 
   ProcessOrderWorkflow:
     purpose: "Processes a new e-commerce order."
+    workflowIDRecipe: "orderprocess_{{.order_id}}"
     input:
       type: "OrderRequest"
       fields:
@@ -50,6 +52,7 @@ workflows:
 
   DataAnalysisWorkflow:
     purpose: "Analyzes a dataset and generates insights."
+    workflowIDRecipe: "dataanalysis_{{hash .}}"
     input:
       type: "AnalysisRequest"
       fields:
@@ -63,6 +66,7 @@ workflows:
 
   NotificationWorkflow:
     purpose: "Sends notifications through various channels."
+    workflowIDRecipe: "send_notification_{{hash .recipient_id .message .channel}}"
     input:
       type: "NotificationRequest"
       fields:
