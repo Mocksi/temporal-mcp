@@ -4,18 +4,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	mcp "github.com/metoro-io/mcp-golang"
 	"github.com/metoro-io/mcp-golang/transport/stdio"
 	"github.com/mocksi/temporal-mcp/internal/config"
 	"github.com/mocksi/temporal-mcp/internal/temporal"
 	"github.com/mocksi/temporal-mcp/internal/tool"
+	temporal_enums "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
+	"hash/fnv"
+	"log"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"text/template"
 )
 
 func main() {
@@ -125,7 +127,8 @@ func registerWorkflowTools(server *mcp.Server, cfg *config.Config, tempClient cl
 func registerWorkflowTool(server *mcp.Server, name string, workflow config.WorkflowDef, tempClient client.Client, cacheClient *tool.CacheClient, cacheEnabled bool, cfg *config.Config) error {
 	// Define the type for workflow parameters based on fields
 	type WorkflowParams struct {
-		Params map[string]string `json:"params"`
+		Params     map[string]string `json:"params"`
+		ForceRerun bool              `json:"force_rerun"`
 	}
 
 	// Register the tool with MCP server
@@ -156,9 +159,37 @@ func registerWorkflowTool(server *mcp.Server, name string, workflow config.Workf
 			log.Printf("Using default task queue: %s for workflow %s", taskQueue, name)
 		}
 
+		workflowID, err := computeWorkflowID(workflow, args.Params)
+		if err != nil {
+			log.Printf("Error computing workflow ID from arguments: %v", err)
+			return mcp.NewToolResponse(mcp.NewTextContent(
+				fmt.Sprintf("Error computing workflow ID from arguments: %v", err),
+			)), nil
+		}
+
+		// This will execute a new workflow when:
+		// - there is no workflow with the given id
+		// - there is a failed workflow with the given id (e.g. terminated, failed, timed out)
+		// and attach to an existing workflow when:
+		// - there is a running workflow with the given id
+		// - there is a successful workflow with the given id
+		//
+		// Note that temporal's data retention window (a setting on each namespace) influences the behavior above
+		reusePolicy := temporal_enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+		conflictPolicy := temporal_enums.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING
+
+		if args.ForceRerun {
+			// This will execute a new workflow in all cases. If there is a running workflow with the given id, it will
+			// be terminated.
+			reusePolicy = temporal_enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE
+			conflictPolicy = temporal_enums.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING
+		}
+
 		wfOptions := client.StartWorkflowOptions{
-			TaskQueue: taskQueue,
-			ID:        fmt.Sprintf("%s-%d", name, time.Now().UnixNano()),
+			TaskQueue:                taskQueue,
+			ID:                       workflowID,
+			WorkflowIDReusePolicy:    reusePolicy,
+			WorkflowIDConflictPolicy: conflictPolicy,
 		}
 
 		log.Printf("Starting workflow %s on task queue %s", name, taskQueue)
